@@ -1,0 +1,136 @@
+# Feature Store Configuration
+# =========================
+
+# Offline Store (PostgreSQL)
+offline_store:
+  postgres:
+    host: localhost
+    port: 5432
+    database: feature_store
+    user: feature_store_user
+    password: ${POSTGRES_PASSWORD}
+  
+  # Batch write settings
+  batch_size: 10000
+  write_parallel: true
+
+# Online Store (Redis)
+online_store:
+  redis:
+    host: localhost
+    port: 6379
+    db: 0
+    password: ${REDIS_PASSWORD}
+  
+  # TTL settings
+  default_ttl: 86400  # 24 hours
+  max_ttl: 604800     # 7 days
+
+# Skew Detection
+skew_detection:
+  enabled: true
+  
+  thresholds:
+    feature_distribution_drift: 0.1
+    missing_feature_rate: 0.05
+    entity_coverage_drop: 0.2
+    latency_p99_ms: 100
+  
+  # Alerting
+  alerting:
+    enabled: false
+    slack_webhook: ${SLACK_WEBHOOK_URL}
+
+# Feature Transformations
+transforms:
+  # Default transforms applied to features
+  default:
+    - type: standard_scaler
+      columns: []
+    - type: handle_nulls
+      strategy: mean
+  
+  # Named transform pipelines
+  pipelines:
+    user_features:
+      - type: one_hot_encode
+        columns: ['category']
+      - type: binning
+        column: 'age'
+        bins: [0, 18, 35, 50, 65, 100]
+    
+    transaction_features:
+      - type: log_transform
+        columns: ['amount']
+      - type: rolling_window
+        column: 'timestamp'
+        window_size: 7
+        aggregations: ['mean', 'std', 'min', 'max']
+
+# Monitoring
+monitoring:
+  enabled: true
+  metrics:
+    - feature_freshness
+    - feature_coverage
+    - feature_drift
+    - request_latency
+  
+  # Prometheus metrics
+  prometheus:
+    enabled: true
+    port: 9090
+
+# API Configuration
+api:
+  host: 0.0.0.0
+  port: 8000
+  workers: 4
+  
+  # Rate limiting
+  rate_limit:
+    enabled: true
+    requests_per_minute: 1000
+  
+  # Authentication
+  auth:
+    enabled: false
+    type: api_key
+    api_keys: []
+
+# Caching
+caching:
+  enabled: true
+  ttl: 300  # 5 minutes
+  
+  # Cache backend
+  backend: redis  # Options: redis, memory
+  redis:
+    host: localhost
+    port: 6379
+    db: 1
+
+# Data Quality
+quality:
+  enabled: true
+  
+  checks:
+    - name: null_check
+      threshold: 0.05
+    
+    - name: range_check
+      min_value: -1000000
+      max_value: 1000000
+    
+    - name: uniqueness_check
+      columns: ['entity_key']
+
+# Logging
+logging:
+  level: INFO
+  format: '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+  
+  # File logging
+  file:
+    enabled: false
+    path: /var/log/feature-store.log
